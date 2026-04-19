@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Inno Setup installer output
+installer_output/
+
+# Local release staging (distribute these manually via GitHub Releases)
+releases/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local logs / CSVs from manual testing
+*.csv

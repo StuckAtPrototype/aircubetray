@@ -1,0 +1,10 @@
+# Runtime dependencies
+PyQt6>=6.4
+pyserial>=3.5
+matplotlib>=3.3
+
+# Build (produces dist/AirCubeTray.exe; Inno Setup is a separate install)
+# pyinstaller>=6.0
+
+# Dev / icon generation (only needed to regenerate aircube_tray.ico)
+# Pillow>=10.0
