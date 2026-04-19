@@ -1,6 +1,9 @@
 """
 Build script that creates both the AirCubeTray.exe and the Windows installer.
 
+Windows-only. For the macOS .dmg run build_dmg.py; for the Linux AppImage
+run build_appimage.py.
+
 Steps:
   1. Build AirCubeTray.exe via PyInstaller using AirCubeTray.spec
      (the spec bundles aircube_tray.ico as a runtime data file and sets
@@ -161,6 +164,14 @@ def build_installer() -> None:
 
 
 def main() -> None:
+    if sys.platform != "win32":
+        print("ERROR: build_installer.py only runs on Windows (it drives Inno Setup).")
+        if sys.platform == "darwin":
+            print("       Use `python build_dmg.py` for a macOS distributable.")
+        else:
+            print("       Use `python build_appimage.py` for a Linux distributable.")
+        sys.exit(1)
+
     print("=" * 60)
     print("AirCube Tray Installer Builder")
     print("=" * 60)

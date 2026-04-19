@@ -16,6 +16,11 @@ installer_output/
 # Local release staging (distribute these manually via GitHub Releases)
 releases/
 
+# Platform installer artifacts (DMG / AppImage / tarballs)
+*.dmg
+*.AppImage
+*.tar.gz
+
 # Editor / OS
 .idea/
 .vscode/

@@ -1,20 +1,26 @@
 """
-Generate a branded AirCube icon (aircube_tray.ico).
+Generate the branded AirCube app icons for all supported platforms.
 
-Produces a multi-size Windows .ico file with sizes suitable for the
-taskbar, window chrome, Explorer, and the large icon shown in
-installers and the "About" dialog.
+Outputs (all written next to this script):
+  - aircube_tray.ico   Windows multi-size icon
+  - aircube_tray.icns  macOS multi-size icon (used in .app bundle)
+  - aircube_tray.png   1024x1024 source PNG (used for Linux .desktop + AppImage)
 
 Run once (or whenever the design changes):
+    pip install Pillow>=10.0
     python generate_tray_icon.py
 """
 import os
 import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "aircube_tray.ico")
-BASE = 256
-RADIUS = 44
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT_ICO = os.path.join(HERE, "aircube_tray.ico")
+OUT_ICNS = os.path.join(HERE, "aircube_tray.icns")
+OUT_PNG = os.path.join(HERE, "aircube_tray.png")
+BASE = 1024  # Source size; downscaled for each icon variant
+SCALE = BASE / 256.0  # Original design was tuned at 256x256
+RADIUS = int(44 * SCALE)
 
 # AQI "good" palette: green -> blue
 TOP_COLOR = (76, 175, 80)      # #4CAF50
@@ -120,39 +126,44 @@ def build_base_image():
     hd.rounded_rectangle((0, 0, BASE - 1, BASE // 2), radius=RADIUS, fill=(255, 255, 255, 30))
     img = Image.alpha_composite(img, Image.composite(highlight, Image.new("RGBA", size, (0, 0, 0, 0)), mask))
 
-    # Draw cube in a translucent white
     overlay = Image.new("RGBA", size, (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
-    draw_cube(od, cx=BASE / 2, cy=BASE / 2 + 6, size=132, stroke_color=(255, 255, 255, 235), stroke_width=10)
+    draw_cube(
+        od,
+        cx=BASE / 2,
+        cy=BASE / 2 + 6 * SCALE,
+        size=int(132 * SCALE),
+        stroke_color=(255, 255, 255, 235),
+        stroke_width=max(1, int(10 * SCALE)),
+    )
 
-    # Soft shadow behind cube for depth
-    shadow = overlay.filter(ImageFilter.GaussianBlur(6))
+    shadow = overlay.filter(ImageFilter.GaussianBlur(6 * SCALE))
     img = Image.alpha_composite(img, Image.eval(shadow, lambda v: v // 3 if v else v) if shadow.mode == "L" else shadow)
     img = Image.alpha_composite(img, overlay)
 
-    # Bold "A" in the center
     text = "A"
-    font = load_bold_font(150)
+    font = load_bold_font(int(150 * SCALE))
     td = ImageDraw.Draw(img)
-    # Use textbbox for accurate centering
-    bbox = td.textbbox((0, 0), text, font=font, stroke_width=4)
+    text_stroke = max(1, int(4 * SCALE))
+    bbox = td.textbbox((0, 0), text, font=font, stroke_width=text_stroke)
     tw = bbox[2] - bbox[0]
     th = bbox[3] - bbox[1]
     tx = (BASE - tw) // 2 - bbox[0]
-    ty = (BASE - th) // 2 - bbox[1] - 4
+    ty = (BASE - th) // 2 - bbox[1] - int(4 * SCALE)
 
-    # Drop shadow
     shadow_layer = Image.new("RGBA", size, (0, 0, 0, 0))
     ImageDraw.Draw(shadow_layer).text(
-        (tx + 2, ty + 4), text, font=font, fill=(0, 0, 0, 120), stroke_width=4, stroke_fill=(0, 0, 0, 120)
+        (tx + int(2 * SCALE), ty + int(4 * SCALE)),
+        text, font=font, fill=(0, 0, 0, 120),
+        stroke_width=text_stroke, stroke_fill=(0, 0, 0, 120),
     )
-    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(3))
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(3 * SCALE))
     img = Image.alpha_composite(img, shadow_layer)
 
     td = ImageDraw.Draw(img)
     td.text(
         (tx, ty), text, font=font, fill=(255, 255, 255, 255),
-        stroke_width=4, stroke_fill=(40, 90, 120, 200),
+        stroke_width=text_stroke, stroke_fill=(40, 90, 120, 200),
     )
 
     # Re-apply the rounded mask to the alpha so nothing bleeds outside
@@ -164,17 +175,28 @@ def build_base_image():
 
 
 def main():
-    print("Generating AirCube tray icon...")
+    print("Generating AirCube tray icon (Windows .ico + macOS .icns + Linux .png)...")
     base = build_base_image()
 
-    sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (16, 16)]
+    # -- Windows .ico (multi-resolution) --
+    ico_sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (16, 16)]
+    base.save(OUT_ICO, format="ICO", sizes=ico_sizes)
+    print(f"  wrote {OUT_ICO}  ({os.path.getsize(OUT_ICO)} bytes, sizes={ico_sizes})")
 
-    # Pillow's ICO writer needs the base image large enough to downscale for each size.
-    base.save(OUT_PATH, format="ICO", sizes=sizes)
+    # -- macOS .icns (multi-resolution) --
+    # Apple's Icon Composer formats: 16, 32, 128, 256, 512, 1024.
+    # Pillow accepts a size list and produces an ICNS bundle with those variants.
+    icns_sizes = [(1024, 1024), (512, 512), (256, 256), (128, 128), (32, 32), (16, 16)]
+    try:
+        base.save(OUT_ICNS, format="ICNS", sizes=icns_sizes)
+        print(f"  wrote {OUT_ICNS}  ({os.path.getsize(OUT_ICNS)} bytes, sizes={icns_sizes})")
+    except (OSError, ValueError) as exc:
+        print(f"  SKIPPED {OUT_ICNS}: {exc}")
+        print("           (Pillow's ICNS writer may require an up-to-date Pillow; run `pip install --upgrade Pillow`.)")
 
-    print(f"  wrote {OUT_PATH}")
-    print(f"  sizes: {sizes}")
-    print(f"  {os.path.getsize(OUT_PATH)} bytes")
+    # -- Cross-platform master PNG (for Linux AppImage / .desktop icon) --
+    base.save(OUT_PNG, format="PNG", optimize=True)
+    print(f"  wrote {OUT_PNG}  ({os.path.getsize(OUT_PNG)} bytes, {BASE}x{BASE})")
 
 
 if __name__ == "__main__":
