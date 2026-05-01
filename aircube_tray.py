@@ -3,7 +3,7 @@ AirCube Tray Monitor
 A lightweight system tray app that displays AQI in the Windows taskbar.
 """
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __app_name__ = "AirCube Tray"
 
 import collections
@@ -44,7 +44,13 @@ from serial.tools import list_ports
 
 # JSON pattern for parsing sensor data
 JSON_PATTERN = re.compile(r"\{.*\}")
-MAX_HISTORY = 1000
+# Live-chart sample buffer. The AirCube emits ~1 sample/second, so this needs
+# to comfortably cover the longest live-range button (1h) with headroom for
+# higher sample rates. 10000 ≈ 2.7h at 1 Hz and is still tiny in memory.
+MAX_HISTORY = 10000
+# Legacy default used by earlier builds; users with this exact value stored
+# in QSettings are silently upgraded so the 30m / 1h range buttons work.
+_LEGACY_MAX_HISTORY = 1000
 
 # AirCube USB identifiers (ESP32-H2 built-in USB Serial/JTAG)
 AIRCUBE_VID = 0x303A  # Espressif
@@ -1087,7 +1093,7 @@ class PopupWindow(QWidget):
 class SettingsDialog(QDialog):
     """Settings dialog for the tray app."""
     def __init__(self, parent=None, current_port: str = "", alert_threshold: int = 100, 
-                 alert_enabled: bool = True, autostart: bool = False, history_size: int = 1000,
+                 alert_enabled: bool = True, autostart: bool = False, history_size: int = MAX_HISTORY,
                  use_fahrenheit: bool = True):
         super().__init__(parent)
         self.setWindowTitle("AirCube Tray Settings")
@@ -1235,6 +1241,11 @@ class AirCubeTray(QSystemTrayIcon):
         self.alert_enabled = self.settings.value("alert_enabled", "true") == "true"
         self.autostart = self.settings.value("autostart", "false") == "true"
         self.history_size = int(self.settings.value("history_size", MAX_HISTORY))
+        # Auto-upgrade users still on the old 1000-sample default so the
+        # 30m / 1h live-range buttons have enough buffered data to display.
+        if self.history_size <= _LEGACY_MAX_HISTORY:
+            self.history_size = MAX_HISTORY
+            self.settings.setValue("history_size", self.history_size)
         self.use_fahrenheit = self.settings.value("use_fahrenheit", "true") == "true"
         
         # State
@@ -1431,36 +1442,81 @@ class AirCubeTray(QSystemTrayIcon):
     
     def _on_history_fetch_response(self, data: dict):
         """Handle paginated history fetch responses."""
-        # Reset timeout on each successful response
+        # Only handle and reset the timer on responses that are actually for
+        # the history fetch. The serial thread emits command_response for *any*
+        # non-sensor JSON, including unrelated acks like set_intensity, and
+        # previously every such response reset the 8s timeout – so the fetch
+        # could stall forever without tripping.
+        is_history_info = "history_info" in data
+        is_history_page = "history" in data
+        is_error = isinstance(data, dict) and data.get("status") == "error"
+
+        if not (is_history_info or is_history_page or is_error):
+            return
+
+        # Error responses abort the fetch with a clear message instead of
+        # being silently dropped.
+        if is_error:
+            msg = data.get("msg", "unknown error")
+            print(f"[AirCubeTray] Device error during history fetch: {msg}")
+            if hasattr(self, '_history_fetch_timer'):
+                self._history_fetch_timer.stop()
+            try:
+                self.serial_thread.command_response.disconnect(
+                    self._on_history_fetch_response)
+            except (TypeError, RuntimeError):
+                pass
+            self._history_fetch_in_progress = False
+            self.popup.set_device_history([], 300_000_000)
+            self.showMessage("Device History",
+                             f"Device error: {msg}",
+                             QSystemTrayIcon.MessageIcon.Warning, 3000)
+            return
+
+        # Valid history-related response – refresh the watchdog.
         if hasattr(self, '_history_fetch_timer'):
             self._history_fetch_timer.start(8000)
-        
-        if "history_info" in data:
+
+        if is_history_info:
             info = data["history_info"]
             self._history_fetch_total = info.get("entries", 0)
             self._history_fetch_window_us = info.get("window_us", 300_000_000)
-            
+
             if self._history_fetch_total == 0:
                 self._complete_history_fetch()
                 return
-            
+
             if self._history_fetch_purpose == 'csv':
                 self.showMessage("Device History",
                                  f"Downloading {self._history_fetch_total} entries...",
                                  QSystemTrayIcon.MessageIcon.Information, 2000)
-            
+
             self._history_fetch_start = 0
             self._send_next_history_page()
-        
-        elif "history" in data:
+
+        else:  # is_history_page
             slots = [s for s in data.get("history", []) if s is not None]
             self._history_fetch_slots.extend(slots)
-            self._history_fetch_start += data.get("count", len(slots))
-            
+
+            # Trust the actual slot count over the reported count. Firmware
+            # now reports the real number emitted, but older firmware (and
+            # truncated pages) may disagree. Use the larger of the two so we
+            # always make forward progress, but never advance past the end.
+            reported = int(data.get("count", 0) or 0)
+            advance = max(reported, len(slots))
+            if advance <= 0:
+                # Nothing came back – avoid an infinite request loop.
+                print(f"[AirCubeTray] Empty history page at start="
+                      f"{self._history_fetch_start}; completing fetch")
+                self._complete_history_fetch()
+                return
+
+            self._history_fetch_start += advance
+
             # Update progress bar
             self.popup.set_history_progress(
                 self._history_fetch_start, self._history_fetch_total)
-            
+
             if self._history_fetch_start >= self._history_fetch_total:
                 self._complete_history_fetch()
             else:
