@@ -22,7 +22,7 @@ BASE = 1024  # Source size; downscaled for each icon variant
 SCALE = BASE / 256.0  # Original design was tuned at 256x256
 RADIUS = int(44 * SCALE)
 
-# AQI "good" palette: green -> blue
+# VOC Level "good" palette: green -> blue
 TOP_COLOR = (76, 175, 80)      # #4CAF50
 BOTTOM_COLOR = (33, 150, 243)  # #2196F3
 

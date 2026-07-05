@@ -1,6 +1,6 @@
 """
 AirCube Tray Monitor
-A lightweight system tray app that displays AQI in the Windows taskbar.
+A lightweight system tray app that displays VOC Level in the Windows taskbar.
 """
 
 __version__ = "1.3.1"
@@ -89,7 +89,7 @@ def is_aircube_port(port_info) -> bool:
 
 # Device history metric configurations for the popup chart
 METRIC_CONFIGS = {
-    'aqi':   {'avg': 'q_a', 'min': 'q_n', 'max': 'q_x', 'label': 'AQI',         'color': '#4CAF50', 'unit': '',    'scale': 1},
+    'aqi':   {'avg': 'q_a', 'min': 'q_n', 'max': 'q_x', 'label': 'VOC Level',   'color': '#4CAF50', 'unit': '',    'scale': 1},
     'temp':  {'avg': 't_a', 'min': 't_n', 'max': 't_x', 'label': 'Temperature', 'color': '#FF9800', 'unit': '°C',  'scale': 0.01},
     'hum':   {'avg': 'h_a', 'min': 'h_n', 'max': 'h_x', 'label': 'Humidity',    'color': '#2196F3', 'unit': '%',   'scale': 0.01},
     'eco2':  {'avg': 'c_a', 'min': 'c_n', 'max': 'c_x', 'label': 'eCO2',        'color': '#9C27B0', 'unit': 'ppm', 'scale': 1},
@@ -146,7 +146,7 @@ def get_aqi_uba_label(aqi_uba: int) -> str:
 
 
 def create_aqi_icon(aqi: Optional[float] = None, connected: bool = False) -> QIcon:
-    """Generate a colored icon with AQI number."""
+    """Generate a colored icon with VOC Level number."""
     size = 64
     img = QImage(size, size, QImage.Format.Format_ARGB32)
     img.fill(Qt.GlobalColor.transparent)
@@ -163,7 +163,7 @@ def create_aqi_icon(aqi: Optional[float] = None, connected: bool = False) -> QIc
         painter.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
         painter.drawText(img.rect(), Qt.AlignmentFlag.AlignCenter, "—")
     elif aqi is not None:
-        # Colored icon with AQI value
+        # Colored icon with VOC Level value
         color = get_aqi_color(aqi)
         painter.setBrush(color)
         painter.setPen(Qt.PenStyle.NoPen)
@@ -337,7 +337,7 @@ class MiniChart(FigureCanvas):
         
         self.draw_idle()
     
-    def update_chart(self, time_data, value_data, label='AQI', color='#4CAF50', unit=''):
+    def update_chart(self, time_data, value_data, label='VOC Level', color='#4CAF50', unit=''):
         self.ax.cla()
         self.ax.set_facecolor('#2b2b2b')
         self._scatter_dot = None
@@ -492,12 +492,12 @@ class PopupWindow(QWidget):
         grid = QGridLayout()
         grid.setSpacing(15)
         
-        # AQI (large)
+        # VOC Level (large)
         self.aqi_value = QLabel("--")
         self.aqi_value.setFont(QFont("Segoe UI", 36, QFont.Weight.Bold))
         self.aqi_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.aqi_label = QLabel("Air Quality Index")
+        self.aqi_label = QLabel("VOC Level")
         self.aqi_label.setStyleSheet("color: #aaa;")
         self.aqi_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
@@ -591,7 +591,7 @@ class PopupWindow(QWidget):
         live_metric_layout.setSpacing(3)
         
         self._live_metric_buttons = {}
-        metrics = [('aqi', 'AQI'), ('temp', 'Temp'), ('hum', 'Humidity'),
+        metrics = [('aqi', 'VOC Level'), ('temp', 'Temp'), ('hum', 'Humidity'),
                    ('eco2', 'eCO2'), ('etvoc', 'eTVOC')]
         
         metric_tab_style = """
@@ -676,7 +676,7 @@ class PopupWindow(QWidget):
         metric_btn_layout.setSpacing(3)
         
         self._metric_buttons = {}
-        metrics = [('aqi', 'AQI'), ('temp', 'Temp'), ('hum', 'Humidity'),
+        metrics = [('aqi', 'VOC Level'), ('temp', 'Temp'), ('hum', 'Humidity'),
                    ('eco2', 'eCO2'), ('etvoc', 'eTVOC')]
         
         metric_tab_style = """
@@ -1148,7 +1148,7 @@ class SettingsDialog(QDialog):
         alert_group = QGroupBox("Alerts")
         alert_layout = QVBoxLayout(alert_group)
         
-        self.alert_checkbox = QCheckBox("Show notification when AQI exceeds threshold")
+        self.alert_checkbox = QCheckBox("Show notification when VOC Level exceeds threshold")
         self.alert_checkbox.setChecked(alert_enabled)
         alert_layout.addWidget(self.alert_checkbox)
         
@@ -1279,7 +1279,7 @@ class AirCubeTray(QSystemTrayIcon):
         self.load_history()
         
         # Branded app icon (used for popup/dialog windows and as the
-        # initial tray icon before real AQI data arrives)
+        # initial tray icon before real VOC Level data arrives)
         self.app_icon = load_app_icon()
         
         # Popup window
@@ -1788,7 +1788,7 @@ class AirCubeTray(QSystemTrayIcon):
     def update_icon(self):
         aqi = self.last_data.get("aqi") if self.last_data else None
         # Show the branded icon while disconnected or before the first
-        # AQI sample arrives; fall back to the dynamic badge otherwise.
+        # VOC Level sample arrives; fall back to the dynamic badge otherwise.
         if aqi is None and not self.app_icon.isNull():
             self.setIcon(self.app_icon)
             return
@@ -1803,7 +1803,7 @@ class AirCubeTray(QSystemTrayIcon):
         aqi_uba = self.last_data.get("aqi_uba")
         if aqi is not None:
             status = get_aqi_uba_label(int(aqi_uba)) if aqi_uba is not None else "--"
-            self.setToolTip(f"AirCube - AQI: {int(aqi)} ({status})\nClick to view details")
+            self.setToolTip(f"AirCube - VOC Level: {int(aqi)} ({status})\nClick to view details")
         else:
             self.setToolTip("AirCube Tray\nClick to view details")
     
@@ -1818,7 +1818,7 @@ class AirCubeTray(QSystemTrayIcon):
         if aqi >= self.alert_threshold and not self.alert_shown:
             self.showMessage(
                 "Air Quality Alert",
-                f"AQI has reached {int(aqi)} - {get_aqi_uba_label(int(self.last_data.get('aqi_uba', 0)))}",
+                f"VOC Level has reached {int(aqi)} - {get_aqi_uba_label(int(self.last_data.get('aqi_uba', 0)))}",
                 QSystemTrayIcon.MessageIcon.Warning,
                 5000
             )

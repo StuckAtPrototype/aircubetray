@@ -1,11 +1,11 @@
 # AirCube Tray
 
-A lightweight cross-platform system-tray app that shows live **AQI** (Air Quality Index) from an [AirCube](https://github.com/stuckatprototype/aircube) sensor directly in your taskbar / menu bar / panel.
+A lightweight cross-platform system-tray app that shows live **VOC Level** from an [AirCube](https://github.com/stuckatprototype/aircube) sensor directly in your taskbar / menu bar / panel.
 
-- Color-coded AQI number as the tray icon (updates live).
+- Color-coded VOC Level number as the tray icon (updates live).
 - Tooltip with temperature, humidity, eCO₂, eTVOC.
-- Right-click popup with history charts (AQI, temperature, humidity, eCO₂, eTVOC).
-- Configurable AQI threshold alerts.
+- Right-click popup with history charts (VOC Level, temperature, humidity, eCO₂, eTVOC).
+- Configurable VOC Level threshold alerts.
 - Auto-detects the AirCube over USB (VID `0x303A` / PID `0x1001`) with silent auto-connect and hotplug watching.
 - Optional "start at login" toggle (Windows today; macOS / Linux planned — see [Limitations](#limitations)).
 
