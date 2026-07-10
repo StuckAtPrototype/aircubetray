@@ -32,9 +32,11 @@ INSTALLER_OUTPUT = SCRIPT_DIR / "installer_output"
 
 def find_inno_setup() -> str | None:
     """Locate the Inno Setup compiler (ISCC.exe)."""
+    local_programs = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs")
     candidates = [
         r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
         r"C:\Program Files\Inno Setup 6\ISCC.exe",
+        os.path.join(local_programs, "Inno Setup 6", "ISCC.exe"),
         r"C:\Program Files (x86)\Inno Setup 5\ISCC.exe",
         r"C:\Program Files\Inno Setup 5\ISCC.exe",
     ]

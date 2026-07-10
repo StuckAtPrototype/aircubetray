@@ -1,7 +1,9 @@
-# Runtime dependencies
+# Runtime dependencies (Windows, Linux, macOS)
 PyQt6>=6.4
 pyserial>=3.5
-matplotlib>=3.3
+bleak>=0.21
+esptool>=4.7
+requests>=2.31
 
 # Build (produces dist/AirCubeTray.exe; Inno Setup is a separate install)
 # pyinstaller>=6.0

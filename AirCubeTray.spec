@@ -1,16 +1,31 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+# AirCube for Windows: tray + windowed app, serial + BLE, firmware flashing.
 
 a = Analysis(
     ['aircube_tray.py'],
     pathex=[],
     binaries=[],
     datas=[('aircube_tray.ico', '.')],
-    hiddenimports=['PyQt6.QtWidgets', 'PyQt6.QtCore', 'PyQt6.QtGui', 'matplotlib.backends.backend_qtagg', 'serial.tools.list_ports'],
+    hiddenimports=[
+        'PyQt6.QtWidgets', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtNetwork',
+        'serial.tools.list_ports',
+        'bleak',
+        'winrt.windows.devices.bluetooth',
+        'winrt.windows.devices.bluetooth.advertisement',
+        'winrt.windows.devices.bluetooth.genericattributeprofile',
+        'winrt.windows.devices.enumeration',
+        'winrt.windows.devices.radios',
+        'winrt.windows.foundation',
+        'winrt.windows.foundation.collections',
+        'winrt.windows.storage.streams',
+        'esptool',
+        'esptool.targets',
+        'requests',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['matplotlib', 'numpy', 'tkinter'],
     noarchive=False,
     optimize=0,
 )

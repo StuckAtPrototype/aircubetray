@@ -1,47 +1,39 @@
-# AirCube Tray
+# AirCube for Desktop
 
-A lightweight Windows system-tray app that shows live **AQI** (Air Quality Index) from an [AirCube](https://github.com/stuckatprototype/aircube) sensor directly in your taskbar.
+The desktop companion app for the [AirCube](https://github.com/stuckatprototype/aircube) air quality sensor. Runs as a **system-tray monitor** and a full **windowed app** (styled after the AirCube iOS app), on Windows today with Linux/macOS support in the codebase (Qt + bleak + pyserial are all cross-platform).
 
-- Color-coded AQI number as the tray icon (updates live).
-- Tooltip with temperature, humidity, eCO₂, eTVOC.
-- Right-click popup with history charts (AQI, temperature, humidity, eCO₂, eTVOC).
-- Configurable AQI threshold alerts.
-- Auto-detects the AirCube over USB (VID `0x303A` / PID `0x1001`) with silent auto-connect and hotplug watching.
-- Optional "start with Windows" toggle.
+## Features
 
-> AirCube Tray is an official companion app for the **AirCube** hardware but it lives in its own repo so it can ship and version independently. Firmware and the main GUI app live in the [AirCube repo](https://github.com/stuckatprototype/aircube).
-
----
+- **Two modes, always in sync** — a tray icon with a color-coded air score badge and quick popup, plus a full window with per-device dashboards. Pick your launch mode in Settings; closing the window minimizes to the tray.
+- **iOS-parity UI** — Home device cards, detail view with 270° air gauge and metric tiles, gap-aware history charts with scrubbing (24h / 3d / 7d), multi-device Compare view, dark and light themes.
+- **USB + Bluetooth** — cubes plugged in over USB auto-connect (hotplug watched, VID `0x303A` / PID `0x1001`); cubes elsewhere in the house connect over BLE (AirCube GATT service). The same physical cube is recognized on both transports (the USB serial number is the chip MAC) and USB is preferred when available, with automatic BLE fallback on unplug.
+- **Multiple cubes** — every connected AirCube gets its own card, history cache (SQLite, keyed by device + sequence), rename/forget, LED brightness control, and CSV export.
+- **History sync** — streams the on-device 7-day history (5-minute slots) over either transport, with iOS-style timestamp anchoring and zero/gap cleaning.
+- **Alerts** — CO₂ (Pro) and VOC threshold notifications with dwell, cooldown, hysteresis, quiet hours, per-device mute, offline alerts. Same defaults as the iOS app (off by default, CO₂ 1200 ppm, VOC 660 ppb).
+- **Firmware flashing** — flash any connected cube over USB straight from the app: pick a release (fetched automatically from [AirCube GitHub Releases](https://github.com/StuckAtPrototype/AirCube/releases)) or a custom `.bin`, watch esptool progress live, auto-reconnect after reboot.
 
 ## Quick start
 
 ### Install (Windows, recommended)
 
-Download the latest installer from [`releases/`](./releases/) and run it:
+Build or download the installer and run it:
 
 ```
-AirCubeTray_Setup_v1.3.0.exe
+AirCubeTray_Setup_v2.0.0.exe
 ```
 
-The installer will:
+The installer installs to `Program Files\AirCubeTray` (or per-user), adds Start Menu / optional desktop shortcuts, optionally launches at Windows startup, and cleans up on uninstall.
 
-- Install to `Program Files\AirCubeTray` (or per-user `%LocalAppData%` if you pick that option).
-- Add a Start Menu shortcut and (optionally) a desktop icon.
-- Optionally launch AirCube Tray at Windows startup.
-- Clean up registry + shortcuts on uninstall.
-
-Plug in your AirCube and the tray app will auto-connect. No settings required.
+Plug in your AirCube and it connects automatically. To add a cube over Bluetooth, open the app and tap **+**.
 
 ### Run from source
 
-Prereqs: Python 3.10+ and an AirCube connected over USB.
+Prereqs: Python 3.10+.
 
 ```bash
 pip install -r requirements.txt
 python aircube_tray.py
 ```
-
----
 
 ## Building
 
@@ -52,11 +44,11 @@ pip install pyinstaller
 python build_tray.py
 ```
 
-Produces `dist/AirCubeTray.exe` (~60 MB, single-file).
+Produces `dist/AirCubeTray.exe` (single-file).
 
 ### The `.exe` + Windows installer
 
-Prereqs: [Inno Setup 6](https://jrsoftware.org/isdl.php) installed at its default path.
+Prereqs: [Inno Setup 6](https://jrsoftware.org/isdl.php).
 
 ```bash
 python build_installer.py
@@ -64,50 +56,36 @@ python build_installer.py
 
 Produces `installer_output/AirCubeTray_Setup_vX.Y.Z.exe`.
 
-The build script:
-
-1. Kills any running `AirCubeTray.exe` (so PyInstaller can overwrite the locked binary).
-2. Runs PyInstaller via `AirCubeTray.spec` (which bundles `aircube_tray.ico` as a runtime resource and sets the `.exe` icon).
-3. Invokes Inno Setup on `installer.iss`.
-
 ### Regenerating the app icon
-
-The icon is generated from code so it's reproducible:
 
 ```bash
 pip install Pillow
 python generate_tray_icon.py
 ```
 
-Overwrites `aircube_tray.ico` as a multi-size Windows ICO (16, 24, 32, 48, 64, 128, 256 px).
+Overwrites `aircube_tray.ico` as a multi-size Windows ICO.
 
----
+## Code layout
 
-## Files
-
-| File | What it is |
+| Path | What it is |
 |------|-----------|
-| `aircube_tray.py` | The app (PyQt6, tray icon, popup charts, serial I/O) |
-| `aircube_tray.ico` | Multi-size app icon (output of `generate_tray_icon.py`) |
-| `generate_tray_icon.py` | Pillow-based icon generator |
-| `AirCubeTray.spec` | PyInstaller spec (bundles icon, sets exe icon) |
-| `build_tray.py` | Builds `dist/AirCubeTray.exe` via PyInstaller |
-| `build_installer.py` | One-shot: `.exe` + Inno Setup installer |
-| `installer.iss` | Inno Setup script (install/uninstall, shortcuts, Run key cleanup) |
-| `requirements.txt` | Runtime deps (PyQt6, pyserial, matplotlib) + optional Pillow for icon gen |
-| `releases/` | Versioned release artifacts (gitignored) |
+| `aircube_tray.py` | Entry point |
+| `aircubeapp/models.py` | Live/history models, quality bands, 0-100 air score (iOS `Theme.swift` logic) |
+| `aircubeapp/theme.py` | Light/dark palette + stylesheet (iOS `Theme.swift` colors) |
+| `aircubeapp/protocol.py` | BLE GATT binary + USB serial JSON parsers |
+| `aircubeapp/store.py` | SQLite history/device cache, preferences |
+| `aircubeapp/manager.py` | Multi-device registry, hotplug, sync queue, transport preference |
+| `aircubeapp/transports/` | `serial_transport.py` (COM ports), `ble_transport.py` (bleak) |
+| `aircubeapp/alerts.py` | Alert engine (dwell/cooldown/quiet hours) |
+| `aircubeapp/flash/` | GitHub release fetch + esptool flash worker |
+| `aircubeapp/ui/` | Widgets, charts, Home/Detail/Compare/Settings pages, tray, dialogs |
+| `AirCubeTray.spec`, `build_tray.py`, `build_installer.py`, `installer.iss` | Packaging |
 
----
+## Protocol notes
 
-## How auto-detect works
-
-- **VID/PID match** — The AirCube is an ESP32-H2 with USB-C wired directly to the chip, so on Windows it enumerates as the built-in USB Serial/JTAG: VID `0x303A`, PID `0x1001`.
-- **Description fallback** — If a weird driver is installed, the app also looks for `"USB JTAG/serial debug unit"` or `"Espressif"` in the port description.
-- **Startup** — Uses the last saved port if it's still plugged in; otherwise auto-detects silently.
-- **Hotplug** — A `QTimer` polls every 2 seconds and connects the moment an AirCube is plugged in.
-- **Settings dialog** — AirCube ports are starred (`★`) and sorted to the top so they're obvious if you need to pick manually.
-
----
+- **Serial**: JSON lines at 115200 baud over the ESP32-H2 USB Serial/JTAG; history via `get_history_info` / paged `get_history`; LED via `set_intensity`.
+- **BLE**: AirCube GATT service `A17C0DE0-1D0F-4E7C-8E4B-2A3D5F6B7C80` — device info (14 B), live data notify (20 B), history request/stream, brightness characteristic. See the [protocol spec](https://github.com/StuckAtPrototype/AirCube/blob/main/docs/BLE_GATT_PROTOCOL.md).
+- **Flashing**: esptool, chip `esp32h2`, 460800 baud; release images flash at `0x0`, app-only dev builds at `0x10000`.
 
 ## License
 

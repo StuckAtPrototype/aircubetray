@@ -6,7 +6,7 @@
 
 #define MyAppName "AirCube Tray"
 #define MyAppShortName "AirCubeTray"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "StuckAtPrototype"
 #define MyAppURL "https://github.com/stuckatprototype/aircubetray"
 #define MyAppExeName "AirCubeTray.exe"
@@ -83,27 +83,37 @@ Type: dirifempty; Name: "{app}"
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "AirCubeTray"; Flags: deletevalue uninsdeletevalue
 
 [Code]
-function InitializeSetup(): Boolean;
+function AppIsRunning(): Boolean;
 var
   ResultCode: Integer;
 begin
+  // `find` exits 0 only when the image name appears in the tasklist output.
+  Result := Exec('cmd.exe',
+    '/c tasklist /FI "IMAGENAME eq {#MyAppExeName}" /NH | find /I "{#MyAppExeName}" > nul',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+procedure CloseRunningApp();
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill', '/IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(500);
+  Exec('taskkill', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1000);
+end;
+
+function InitializeSetup(): Boolean;
+begin
   Result := True;
-  // If the tray app is currently running, offer to close it before continuing.
-  if Exec('tasklist', '/FI "IMAGENAME eq {#MyAppExeName}" /NH', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  if AppIsRunning() then
   begin
-    if MsgBox('{#MyAppName} may be running. Close it now and continue with the installation?',
-              mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      Exec('taskkill', '/IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(500);
-      Exec('taskkill', '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Sleep(1000);
-    end
+    if WizardSilent() or
+       (MsgBox('{#MyAppName} is running. Close it now and continue with the installation?',
+               mbConfirmation, MB_YESNO) = IDYES) then
+      CloseRunningApp()
     else
-    begin
-      // User chose not to close it; abort the install.
       Result := False;
-    end;
   end;
 end;
 
