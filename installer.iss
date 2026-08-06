@@ -6,7 +6,7 @@
 
 #define MyAppName "AirCube Tray"
 #define MyAppShortName "AirCubeTray"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.0.1"
 #define MyAppPublisher "StuckAtPrototype"
 #define MyAppURL "https://github.com/stuckatprototype/aircubetray"
 #define MyAppExeName "AirCubeTray.exe"

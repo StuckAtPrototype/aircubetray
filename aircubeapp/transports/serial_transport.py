@@ -169,6 +169,11 @@ class SerialConnection(QThread):
         if not self._fetch_active:
             return
         self._fetch_deadline = time.monotonic() + self.HISTORY_TIMEOUT_S
+        if self._fetch_total:
+            # Duplicate info (e.g. a reply left in the stream by a previous
+            # client) while this fetch is already paging: restarting the pages
+            # would desynchronize the cursor from the device's replies.
+            return
         self._fetch_total = int(info.get("entries", 0))
         window_us = int(info.get("window_us", 300_000_000))
         self._fetch_window_s = max(1, window_us // 1_000_000)
@@ -182,6 +187,13 @@ class SerialConnection(QThread):
         if not self._fetch_active:
             return
         self._fetch_deadline = time.monotonic() + self.HISTORY_TIMEOUT_S
+        if self._fetch_total <= 0:
+            return  # page belongs to an earlier fetch; this one has no info yet
+        resp_start = data.get("start")
+        if resp_start is not None and int(resp_start) != self._fetch_start:
+            # Duplicate or stale page: advancing the cursor here would append
+            # the same slots twice and end the sync before the newest page.
+            return
         raw = [s for s in data.get("history", []) if s is not None]
         for s in raw:
             slot = proto.parse_serial_history_slot(s)
