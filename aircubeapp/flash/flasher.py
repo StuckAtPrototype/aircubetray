@@ -7,12 +7,32 @@ offset (0x0 for merged images, 0x10000 for app-only builds).
 from __future__ import annotations
 
 import io
+import os
 import sys
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
 FLASH_BAUD = 460800
+# The ROM loader is less tolerant of high baud rates than the stub.
+ROM_FLASH_BAUD = 115200
 CHIP = "esp32h2"
+
+
+def stub_data_available() -> bool:
+    """Whether esptool can find its flasher stub for CHIP.
+
+    esptool reads stubs from JSON files shipped inside its package and resolved
+    relative to the package directory, so a packaging mistake can leave a frozen
+    build without them. Checking up front lets us fall back to the ROM loader
+    instead of failing the flash outright.
+    """
+    try:
+        from esptool.loader import StubFlasher
+    except Exception:
+        return True  # nothing to check against; let esptool report its own errors
+    json_name = f"{CHIP}.json"
+    return any(os.path.isfile(os.path.join(StubFlasher.STUB_DIR, subdir, json_name))
+               for subdir in StubFlasher.STUB_SUBDIRS)
 
 
 class _EmittingStream(io.TextIOBase):
@@ -57,15 +77,20 @@ class FlashWorker(QThread):
         self.offset = offset
 
     def run(self):
+        use_stub = stub_data_available()
         args = [
             "--chip", CHIP,
             "--port", self.port,
-            "--baud", str(FLASH_BAUD),
+            "--baud", str(FLASH_BAUD if use_stub else ROM_FLASH_BAUD),
             "--before", "default-reset",
             "--after", "hard-reset",
-            "write-flash",
-            f"0x{self.offset:X}", self.firmware_path,
         ]
+        if not use_stub:
+            self.log_line.emit(
+                "Flasher stub unavailable in this build; falling back to the ROM "
+                "loader. Flashing will be slower but should still succeed.")
+            args.append("--no-stub")
+        args += ["write-flash", f"0x{self.offset:X}", self.firmware_path]
         self.log_line.emit("esptool " + " ".join(args))
 
         stream = _EmittingStream(self._on_line)

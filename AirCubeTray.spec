@@ -1,11 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 # AirCube for Windows: tray + windowed app, serial + BLE, firmware flashing.
 
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+# esptool loads its flasher stubs from JSON files on disk
+# (esptool/targets/stub_flasher/<version>/<chip>.json), resolved relative to the
+# esptool package directory. There is no PyInstaller hook for esptool, so
+# declaring the modules as hidden imports is not enough: without these data
+# files a frozen build fails with "Flasher stub data is missing for ESP32-H2".
+esptool_datas = collect_data_files('esptool')
+esptool_hiddenimports = collect_submodules('esptool')
+
 a = Analysis(
     ['aircube_tray.py'],
     pathex=[],
     binaries=[],
-    datas=[('aircube_tray.ico', '.')],
+    datas=[('aircube_tray.ico', '.')] + esptool_datas,
     hiddenimports=[
         'PyQt6.QtWidgets', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtNetwork',
         'serial.tools.list_ports',
@@ -18,10 +28,8 @@ a = Analysis(
         'winrt.windows.foundation',
         'winrt.windows.foundation.collections',
         'winrt.windows.storage.streams',
-        'esptool',
-        'esptool.targets',
         'requests',
-    ],
+    ] + esptool_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

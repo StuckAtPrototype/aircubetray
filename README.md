@@ -19,7 +19,7 @@ The desktop companion app for the [AirCube](https://github.com/stuckatprototype/
 Build or download the installer and run it:
 
 ```
-AirCubeTray_Setup_v2.0.1.exe
+AirCubeTray_Setup_v2.0.2.exe
 ```
 
 The installer installs to `Program Files\AirCubeTray` (or per-user), adds Start Menu / optional desktop shortcuts, optionally launches at Windows startup, and cleans up on uninstall.
